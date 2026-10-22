@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrchestraMSS</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>OrchestraMSS</h1>
+    <p>SynthSOD 베이스라인 vs MVSep Mega 53 Stems · 오케스트라 음원 분리 비교</p>
+  </div>
+  <button id="toggle-history" class="ghost">기록</button>
+</header>
+
+<div class="layout">
+  <aside id="history" class="history">
+    <h2>이전 작업</h2>
+    <ul id="history-list"></ul>
+  </aside>
+
+  <main>
+    <!-- 1. 입력 -->
+    <section class="card" id="step-input">
+      <h2><span class="num">1</span>입력 오디오</h2>
+      <label id="drop" class="drop">
+        <input id="file" type="file" accept=".wav,.flac,.ogg,.aiff,.aif,audio/*" hidden>
+        <strong>wav 파일을 끌어다 놓거나 클릭해서 선택</strong>
+        <span>wav · flac · aiff · ogg</span>
+      </label>
+      <div id="input-view" hidden>
+        <div class="file-line"><span id="file-name"></span><span id="file-meta" class="muted"></span></div>
+        <div class="wave-wrap">
+          <canvas id="input-wave" height="96"></canvas>
+          <div id="sel" class="sel"></div>
+        </div>
+        <div class="range-row">
+          <label>시작 <input id="start" type="range" min="0" step="0.1"> <output id="start-out"></output></label>
+          <label>끝 <input id="end" type="range" min="0" step="0.1"> <output id="end-out"></output></label>
+          <button id="preview" class="ghost">▶ 구간 미리듣기</button>
+        </div>
+        <p class="hint">구간 길이 <b id="sel-len"></b> · 긴 구간일수록 Mega 53이 오래 걸립니다. 발표용으로는 20–60초를 권합니다.</p>
+      </div>
+    </section>
+
+    <!-- 2. 모델 -->
+    <section class="card" id="step-models">
+      <h2><span class="num">2</span>모델 설정</h2>
+      <div class="models">
+        <div class="model">
+          <label class="model-head"><input type="checkbox" id="use-synthsod" checked> <b>SynthSOD 베이스라인</b> <span class="tag">X-UMX · CPU · 모노</span></label>
+          <p class="muted">현악·목관·금관·타악 모델 4개 → 악기 15개 + residual</p>
+          <div class="opt">학습 데이터
+            <label><input type="radio" name="variant" value="synthsod" checked> SynthSOD</label>
+            <label><input type="radio" name="variant" value="ensembleset"> EnsembleSet</label>
+          </div>
+        </div>
+        <div class="model">
+          <label class="model-head"><input type="checkbox" id="use-mega" checked> <b>MVSep Mega 53 Stems</b> <span class="tag">BS-RoFormer · MPS · 스테레오</span></label>
+          <p class="muted">53개 스템 중 선택한 것만 계산 (선택이 적을수록 조금 빠름)</p>
+          <div class="opt">청크
+            <label><input type="radio" name="chunk" value="10" checked> 10초 (학습 크기, 권장)</label>
+            <label><input type="radio" name="chunk" value="5"> 5초 (약 2배 빠름)</label>
+          </div>
+          <div class="opt">프리셋
+            <button class="chip" data-preset="default">오케스트라 전체</button>
+            <button class="chip" data-preset="orchestra">개별 악기만</button>
+            <button class="chip" data-preset="families">악기군만</button>
+            <button class="chip" data-preset="all">53개 전부</button>
+          </div>
+          <details>
+            <summary>스템 직접 선택 (<span id="stem-count">0</span>개)</summary>
+            <div id="stem-grid" class="stem-grid"></div>
+          </details>
+        </div>
+      </div>
+      <div class="run-row">
+        <button id="run" class="primary" disabled>분리 실행</button>
+        <span id="eta" class="muted"></span>
+      </div>
+    </section>
+
+    <!-- 3. 진행 -->
+    <section class="card" id="step-progress" hidden>
+      <div class="results-head">
+        <h2><span class="num">3</span>진행 상황 <span id="job-id" class="muted small"></span></h2>
+        <button id="cancel" class="ghost danger" hidden>취소하고 삭제</button>
+      </div>
+      <div id="progress-list"></div>
+    </section>
+
+    <!-- 4. 결과 -->
+    <section class="card" id="step-results" hidden>
+      <div class="results-head">
+        <h2><span class="num">4</span>결과 비교</h2>
+        <div class="actions">
+          <a id="zip" class="ghost btn" href="#">전체 zip 다운로드</a>
+          <button id="delete" class="ghost danger">삭제</button>
+        </div>
+      </div>
+      <p id="result-meta" class="muted"></p>
+      <div class="mix-row">
+        <span class="row-label">원본 믹스</span>
+        <div id="mix-cell"></div>
+      </div>
+      <p class="hint">셀의 ▶는 해당 스템만 재생합니다. 파형을 클릭하면 그 위치부터 재생합니다. <b>A/B</b>는 두 모델 결과를 같은 시점에 동시 재생하며, 다시 누르거나 <kbd>A</kbd>/<kbd>B</kbd> 키로 전환합니다. <kbd>Space</kbd>는 일시정지/재생, <kbd>←</kbd>/<kbd>→</kbd>는 3초 이동입니다.</p>
+      <div id="matrix" class="matrix"></div>
+    </section>
+  </main>
+</div>
+
+<div id="player-bar" class="player-bar" hidden>
+  <span id="player-label"></span>
+  <button id="player-back" class="ghost" title="3초 뒤로 (←)">« 3초</button>
+  <button id="player-toggle" class="ghost" title="일시정지/재생 (Space)">❚❚</button>
+  <button id="player-fwd" class="ghost" title="3초 앞으로 (→)">3초 »</button>
+  <div class="pb-track" id="player-track" title="클릭하거나 끌어서 이동">
+    <div class="pb-wave">
+      <canvas id="player-wave"></canvas>
+      <div id="player-played" class="pb-played"><canvas id="player-wave-played"></canvas></div>
+      <div id="player-head" class="pb-head"></div>
+    </div>
+    <div class="bar"><div id="player-pos"></div></div>
+  </div>
+  <span id="player-time" class="muted"></span>
+  <button id="player-stop" class="ghost">■ 정지</button>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

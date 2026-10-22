@@ -1,0 +1,14 @@
+.venv/
+.idea/
+.claude/
+__pycache__/
+.DS_Store
+
+# Downloaded by setup.sh (SynthSOD-Baseline is AGPL-3.0, not redistributed)
+third_party/
+models/
+
+# Separation outputs and logs
+runs/
+*.log
+*.wav

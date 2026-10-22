@@ -1,0 +1,23 @@
+# 추론 전용 최소 의존성 (MSST 전체 requirements.txt는 학습/GUI용 패키지가 많아 사용하지 않음)
+torch
+torchaudio
+numpy
+scipy
+soundfile
+pyyaml
+norbert
+# SynthSOD 베이스라인: pip의 asteroid 0.7.0은 X-UMX가 깨져 있어 master 사용
+https://github.com/asteroid-team/asteroid/zipball/master
+# MSST (BS-RoFormer) 추론에 필요한 것
+ml_collections
+omegaconf
+beartype
+rotary_embedding_torch==0.3.5
+einops
+loralib
+wandb
+librosa
+# 웹 서버
+fastapi
+uvicorn
+python-multipart
